@@ -197,8 +197,16 @@ python src/drl_navigation_ros2/multi_robot_eval_3round.py \
 ```
 
 > **注意**：`models/` 权重目录因体积原因未纳入版本控制。
-> 请从 [Releases](../../releases) 下载后解压到 `src/drl_navigation_ros2/models/`，
-> 目录结构需保持 `<模型名>/<机器人序号>/<模型名>_<序号>_actor.pth`。
+> 请从 [**Releases**](../../releases) 下载对应的权重包并解压到 `src/drl_navigation_ros2/models/`：
+>
+> ```bash
+> # Part 1 最优模型（Scene1b 3-robot, Shared Buffer 25-dim E30）
+> tar -xzf SAC_3r_part1_shared_buffer_e30.tar.gz -C src/drl_navigation_ros2/models/
+> ```
+>
+> 解压后的目录结构必须为 `<模型名>/<机器人序号>/<模型名>_<序号>_actor.pth`，
+> 与 `experiment_registry.py` 中该实验的 `checkpoints` 字段一致。
+> 未提供权重的机器人按 registry 约定回退到 robot0 的策略。
 
 结果自动归档到 `eval_results/<exp_id>_<时间戳>.json` + 同名 `.md`，
 含配置快照（git commit、seed、布局文件、场景/N/维度）。
