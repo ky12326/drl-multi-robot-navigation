@@ -146,3 +146,60 @@ tests/reports
 .ruff_cache
 /log/
 /install/
+
+# ============================================================
+# 以下为公开仓库排除项 —— 文件保留在本地，只是不上传
+# ============================================================
+
+# --- 训练产物与实验输出 ---
+/runs/
+/logs/
+/src/drl_navigation_ros2/models/
+/src/drl_navigation_ros2/TD3xunlian/
+/src/drl_navigation_ros2/CTDE_archive/
+/src/drl_navigation_ros2/_archived/
+
+# --- 上游早期实验（硬编码行为基线，与当前 DRL 框架无关）---
+# hardcoded_model.py 的默认数据源就是 assets/data.yml（39 MB）
+/src/drl_navigation_ros2/hardcoded_model.py
+/src/drl_navigation_ros2/assets/
+
+# --- 已收敛的历史脚本（由 multi_robot_train.py + experiment_registry 取代）---
+/src/drl_navigation_ros2/multi_robot_train_scene1b_*.py
+/src/drl_navigation_ros2/multi_robot_eval_v2.py
+/src/drl_navigation_ros2/multi_robot_eval_3round_29dim*.py
+/src/drl_navigation_ros2/multi_robot_eval_3round_shared*.py
+/src/drl_navigation_ros2/multi_robot_eval_3round_e30.py
+/src/drl_navigation_ros2/multi_robot_eval_3round_scene0.py
+
+# --- 内部工作文档与个人材料 ---
+/CLAUDE.md
+/DECISIONS.md
+/WEEKLY_REPORT.md
+/VISUALIZATION_GUIDE.md
+/PART2_PLAN.md
+/result.md
+/xunlian.md
+/documents/
+/源代码文档/
+/两周技能补齐清单.md
+/*.pdf
+/.claude/
+
+# --- IDE 与备份残留 ---
+/.idea/
+*.backup
+**/turtlebot3_drl_backup/
+
+# --- 上游残留（与本项目无关，本地保留）---
+# CODEOWNERS 指向的是上游维护者，保留会让本仓库开 PR 时向上游陌生人请求 review
+/.github/CODEOWNERS
+# 上游的 Python 打包/PR 模板，本项目已改为直接 pytest（pyproject.toml 已移除）
+/Makefile
+/docs/pull_request_template.md
+/src/test.env
+
+# --- 本项目已废弃的工具与产物 ---
+# plot.py 的输入来自已删除的 eval_compare_scene0.py
+/plot.py
+/src/turtlebot3_simulations/turtlebot3_gazebo/worlds/turtlebot3_drl/waffle_multi_robot.model
