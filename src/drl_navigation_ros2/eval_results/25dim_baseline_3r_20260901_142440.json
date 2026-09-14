@@ -1,0 +1,173 @@
+{
+ "meta": {
+  "exp_id": "25dim_baseline_3r",
+  "scene": "scene1b",
+  "num_robots": 3,
+  "state_dim": 25,
+  "reward_mode": "social_v1",
+  "model_dir": "src/drl_navigation_ros2/models/SAC_multi_robot_scene1b_3robot_25dim_baseline",
+  "fixed_questions": true,
+  "layout_file": "scene1b_3r_1x5_seed42.json",
+  "seed": 42,
+  "git_commit": "216a23a",
+  "num_rounds": 1,
+  "episodes_per_mode": 5,
+  "max_steps": 420
+ },
+ "baselines": {
+  "queue": 0.13,
+  "cross": 0.48,
+  "center": 0.58,
+  "random": 0.4
+ },
+ "results": {
+  "queue": {
+   "rounds": [
+    {
+     "all_goal": 0.2,
+     "any_collision": 0.8,
+     "deadlock": 0.0,
+     "avg_pairwise_min_dist": 0.5485328316688538,
+     "per_robot": [
+      {
+       "goal": 0.6,
+       "collision": 0.4,
+       "timeout": 0.0,
+       "avg_steps": 22.8
+      },
+      {
+       "goal": 0.2,
+       "collision": 0.8,
+       "timeout": 0.0,
+       "avg_steps": 18.8
+      },
+      {
+       "goal": 0.4,
+       "collision": 0.6,
+       "timeout": 0.0,
+       "avg_steps": 56.2
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "mean": 0.2,
+    "std": 0.0,
+    "peak": 0.2,
+    "min": 0.2,
+    "mean_collision": 0.8
+   }
+  },
+  "cross": {
+   "rounds": [
+    {
+     "all_goal": 0.2,
+     "any_collision": 0.8,
+     "deadlock": 0.0,
+     "avg_pairwise_min_dist": 0.48574578166008,
+     "per_robot": [
+      {
+       "goal": 0.2,
+       "collision": 0.8,
+       "timeout": 0.0,
+       "avg_steps": 19.8
+      },
+      {
+       "goal": 0.6,
+       "collision": 0.4,
+       "timeout": 0.0,
+       "avg_steps": 26.8
+      },
+      {
+       "goal": 0.4,
+       "collision": 0.6,
+       "timeout": 0.0,
+       "avg_steps": 22.4
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "mean": 0.2,
+    "std": 0.0,
+    "peak": 0.2,
+    "min": 0.2,
+    "mean_collision": 0.8
+   }
+  },
+  "center": {
+   "rounds": [
+    {
+     "all_goal": 0.6,
+     "any_collision": 0.4,
+     "deadlock": 0.0,
+     "avg_pairwise_min_dist": 0.8123889267444611,
+     "per_robot": [
+      {
+       "goal": 0.6,
+       "collision": 0.4,
+       "timeout": 0.0,
+       "avg_steps": 26.6
+      },
+      {
+       "goal": 0.8,
+       "collision": 0.2,
+       "timeout": 0.0,
+       "avg_steps": 20.0
+      },
+      {
+       "goal": 0.8,
+       "collision": 0.2,
+       "timeout": 0.0,
+       "avg_steps": 17.4
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "mean": 0.6,
+    "std": 0.0,
+    "peak": 0.6,
+    "min": 0.6,
+    "mean_collision": 0.4
+   }
+  },
+  "random": {
+   "rounds": [
+    {
+     "all_goal": 0.4,
+     "any_collision": 0.6,
+     "deadlock": 0.0,
+     "avg_pairwise_min_dist": 0.7032871425151825,
+     "per_robot": [
+      {
+       "goal": 0.6,
+       "collision": 0.4,
+       "timeout": 0.0,
+       "avg_steps": 29.6
+      },
+      {
+       "goal": 0.8,
+       "collision": 0.2,
+       "timeout": 0.0,
+       "avg_steps": 27.0
+      },
+      {
+       "goal": 0.6,
+       "collision": 0.4,
+       "timeout": 0.0,
+       "avg_steps": 18.8
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "mean": 0.4,
+    "std": 0.0,
+    "peak": 0.4,
+    "min": 0.4,
+    "mean_collision": 0.6
+   }
+  }
+ }
+}
