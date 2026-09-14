@@ -1,0 +1,13 @@
+# Python 依赖（ROS2 侧依赖需另行安装，见 README「环境要求」）
+#
+# 刻意不写版本上限：本项目面向 Ubuntu 20.04 / Python 3.8，
+# 上限约束容易在该环境下产生无解的依赖冲突。
+
+numpy
+torch
+squaternion        # multi_robot_env.py —— 四元数转欧拉角
+tensorboard        # torch 不自带；SAC/TD3 的 SummaryWriter 依赖它
+matplotlib         # vis_scene2_layout.py —— 布局可视化
+
+pytest>=7.0        # pytest.ini 使用了 pythonpath 选项，需要 pytest >= 7
+                   # （Ubuntu 20.04 的 apt 版 python3-pytest 是 4.6，不满足）

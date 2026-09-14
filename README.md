@@ -149,46 +149,74 @@ env.step()   →  发布 N 个 cmd_vel → 取消暂停物理 ~150ms → 轮询�
 
 ## 快速开始
 
-### 环境要求
+> ⚠️ **以下所有命令都必须在仓库根目录执行。**
+> `experiment_registry.MODELS_ROOT` 是相对路径（`src/drl_navigation_ros2/models`），
+> 换到别的目录会找不到权重与布局文件。
 
-Ubuntu 20.04 · ROS2 Foxy · Python 3.8 · PyTorch（CUDA 11.3）
+### 1. 环境要求
+
+- Ubuntu 20.04 · ROS2 Foxy（**desktop 版** —— 需要 `gazebo_ros`、`urdf`、`xacro`）
+- Python 3.8 · PyTorch
 
 ```bash
 source /opt/ros/foxy/setup.bash
 source <你的 venv>/bin/activate
-export TURTLEBOT3_MODEL=waffle
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(pwd)/src/turtlebot3_simulations/turtlebot3_gazebo/models
+
+# Python 依赖：torch / numpy / squaternion / tensorboard / matplotlib / pytest
+pip install -r requirements.txt
+
 colcon build
 source install/setup.bash
 ```
 
-### 测试（无需 Gazebo）
+> `colcon build` 只编译仓库内 vendor 的两个 turtlebot3 包
+> （`turtlebot3_description`、`turtlebot3_gazebo`），因此**不需要**额外
+> `apt install ros-foxy-turtlebot3*`。
+>
+> `src/drl_navigation_ros2/` **不是 ROS 包**（没有 `package.xml`），`colcon` 会静默跳过它；
+> 它通过各脚本内部的 `sys.path` 追加以及 `pytest.ini` 的 `pythonpath` 生效，
+> 这也是「必须在仓库根目录执行」的原因之一。
+
+### 2. 测试（无需 Gazebo，也无需权重）
 
 ```bash
-pip install pytest
-pytest tests/ -v                                        # 单元测试套件
-python src/drl_navigation_ros2/test_dryrun_training.py  # 训练循环接口预检
+pytest tests/ -v                                        # 单元测试套件（24 个用例）
+python src/drl_navigation_ros2/test_dryrun_training.py  # 训练循环接口预检（10 项 Check）
 ```
 
 > 修改任何代码后应**先跑这两道关卡**，全部通过再启动 Gazebo 训练。
+>
+> 两点说明：
+> - `tests/test_layouts.py` 的 8 个用例需要 `rclpy`，无 ROS 环境下该模块整体 skip，
+>   输出为 `16 passed, 8 skipped`；有 ROS 时才是 24 个全跑。
+> - `test_dryrun_training.py` 不依赖 Gazebo、也不依赖任何权重文件。
+>   若训练用的 social-v1 权重不在本地，Check 1 会打印警告并**回退冷启动**继续。
 
-### 训练
+### 3. 训练
 
 ```bash
-# 终端 1 — 启动仿真（gui:=false 关闭渲染，可显著提速）
+# 终端 1 —— 启动仿真（gui:=false 关闭渲染，可显著提速）
 ros2 launch turtlebot3_gazebo ros2_drl_multi_robot_sync_3robot.launch.py \
     world_name:=multi_robot_drl_scene1b_bottleneck.world gui:=false
 
-# 终端 2 — 训练（--tag 决定模型目录名）
+# 终端 2 —— 训练（--tag 决定模型目录名）
 python src/drl_navigation_ros2/multi_robot_train.py \
-    --num-robots 3 --tag shared_buffer_v1 --epochs 30 \
-    --warmstart 25dim_baseline_3r
+    --num-robots 3 --tag shared_buffer_v1 --epochs 30
 ```
 
 支持 `--num-robots 2..5+`、`--scene scene0|scene1b`、`--neighbors`（邻居位姿扩展状态）、
-`--seq-len N`（帧堆叠）。训练完成后在 `experiment_registry.py` 加一条评估条目即可用统一入口评估。
+`--seq-len N`（帧堆叠）。
 
-### 评估
+可选参数 `--warmstart <registry-exp-id>` 会从 `models/` 读取该实验的权重；
+**若权重不在本地会直接报错**，此时去掉该参数从零训练即可。
+
+> ⚠️ 训练脚本会构造**非 headless** 环境连接 Gazebo。
+> 请确认终端 1 已经起来，否则脚本会卡在等待 `/gazebo/set_entity_state` 服务的循环里
+> （表现为反复打印 `Service not available, waiting again...`），且**不会自行退出**。
+
+### 4. 评估
+
+> ⚠️ **评估同样需要 Gazebo 已运行**，沿用上面的终端 1。
 
 ```bash
 python src/drl_navigation_ros2/multi_robot_eval_3round.py \
@@ -196,8 +224,12 @@ python src/drl_navigation_ros2/multi_robot_eval_3round.py \
     --rounds 3 --episodes 20
 ```
 
+`--exp` 取 `experiment_registry.EXPERIMENTS` 里的 id，
+可先执行 `python src/drl_navigation_ros2/experiment_registry.py` 列出全部条目。
+
 > **注意**：`models/` 权重目录因体积原因未纳入版本控制。
-> 请从 [**Releases**](../../releases) 下载对应的权重包并解压到 `src/drl_navigation_ros2/models/`：
+> 请从 [**Releases**](../../releases) 下载对应的权重包并解压到
+> `src/drl_navigation_ros2/models/`：
 >
 > ```bash
 > # Part 1 最优模型（Scene1b 3-robot, Shared Buffer 25-dim E30）
@@ -207,6 +239,11 @@ python src/drl_navigation_ros2/multi_robot_eval_3round.py \
 > 解压后的目录结构必须为 `<模型名>/<机器人序号>/<模型名>_<序号>_actor.pth`，
 > 与 `experiment_registry.py` 中该实验的 `checkpoints` 字段一致。
 > 未提供权重的机器人按 registry 约定回退到 robot0 的策略。
+>
+> **目前只发布了 `25dim_shared_buffer_v1_extended_3r`（Part 1 最优）与
+> Scene2 Stage4（Part 2 最优）两组权重。**
+> 评估其余 registry 条目（`29dim_*`、`4robot`、`5robot` 等）需先用
+> `multi_robot_train.py` 自行训练。
 
 结果自动归档到 `eval_results/<exp_id>_<时间戳>.json` + 同名 `.md`，
 含配置快照（git commit、seed、布局文件、场景/N/维度）。
@@ -331,6 +368,14 @@ python src/drl_navigation_ros2/multi_robot_eval_3round.py \
    训练用课程采样（25% open + 25% center + 20% cross + 20% queue + 10% random），
    评估用固定题目。两者的布局生成器相同，但采样比例不同，
    因此评估指标反映的是**分布外泛化**，不是训练分布内的表现。
+
+5. **URDF 引用了两个不存在的轮胎网格（上游遗留）**
+   `turtlebot3_waffle.urdf` 引用了
+   `meshes/wheels/{left,right}_tire.stl`，但该目录**从上游版本起就不存在**
+   （已核对：`git ls-tree HEAD` 中无此路径，上游仓库亦然）。
+   影响**仅限视觉** —— 轮胎的 `<collision>` 是独立的 `<cylinder>`，物理完好，
+   Gazebo 会打印一条 `Unable to find file ...` 后正常 spawn。
+   启动日志里看到这条警告属正常现象，不代表环境没装好。
 
 ---
 

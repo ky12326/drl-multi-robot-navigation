@@ -426,6 +426,30 @@ def load_models(exp, num_robots=None, device="cpu", swap=False):
     if num_robots is None:
         num_robots = exp["num_robots"]
     specs = _resolve(exp, num_robots)
+
+    # 提前校验权重存在性：否则 SAC 内部会抛裸 FileNotFoundError，
+    # 对首次 clone 的人几乎没有指向性。
+    missing, seen = [], set()
+    for load_dir, load_name in specs:
+        key = (str(load_dir), load_name)
+        if key in seen:
+            continue
+        seen.add(key)
+        if not (Path(load_dir) / f"{load_name}_actor.pth").exists():
+            missing.append(f"{load_dir}/{load_name}_actor.pth")
+    if missing:
+        raise FileNotFoundError(
+            f"缺少模型权重，无法加载实验"
+            f"（scene={exp.get('scene')}, N={exp.get('num_robots')}）：\n  "
+            + "\n  ".join(missing) +
+            "\n\n排查建议：\n"
+            "  1) 权重未随仓库分发（models/ 因体积被排除），请从 Releases 下载对应"
+            "权重包并解压到 src/drl_navigation_ros2/models/（见 README「评估」一节）；\n"
+            "  2) 确认当前工作目录是仓库根目录 —— MODELS_ROOT 是相对路径；\n"
+            "  3) 若该实验的权重未发布，改用已发布权重的 --exp，"
+            "或先用 multi_robot_train.py 训练后再评估。"
+        )
+
     if swap and len(specs) >= 2:
         specs[0], specs[1] = specs[1], specs[0]
         print("   🔄 r0 ↔ r1 权重交换")
