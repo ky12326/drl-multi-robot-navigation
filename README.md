@@ -213,6 +213,12 @@ python src/drl_navigation_ros2/multi_robot_train.py \
 > ⚠️ 训练脚本会构造**非 headless** 环境连接 Gazebo。
 > 请确认终端 1 已经起来，否则脚本会卡在等待 `/gazebo/set_entity_state` 服务的循环里
 > （表现为反复打印 `Service not available, waiting again...`），且**不会自行退出**。
+>
+> ⚠️ 另一处不容易定位的坑：Gazebo 的 `spawn_entity.py` 以 `#!/usr/bin/env python3`
+> 运行，用的是 **PATH 中第一个 `python3`**。若你激活的 venv 里没有 `numpy`，
+> 三台车会**全部** spawn 失败，日志里只有 `ModuleNotFoundError: No module named 'numpy'`
+> 和 `spawn_entity.py: process has died`，看不出和 numpy 的关系。
+> 按第 1 步执行 `pip install -r requirements.txt` 即可避免。
 
 ### 4. 评估
 
@@ -370,12 +376,13 @@ python src/drl_navigation_ros2/multi_robot_eval_3round.py \
    因此评估指标反映的是**分布外泛化**，不是训练分布内的表现。
 
 5. **URDF 引用了两个不存在的轮胎网格（上游遗留）**
-   `turtlebot3_waffle.urdf` 引用了
+   `turtlebot3_waffle.urdf.xacro` 引用了
    `meshes/wheels/{left,right}_tire.stl`，但该目录**从上游版本起就不存在**
    （已核对：`git ls-tree HEAD` 中无此路径，上游仓库亦然）。
-   影响**仅限视觉** —— 轮胎的 `<collision>` 是独立的 `<cylinder>`，物理完好，
-   Gazebo 会打印一条 `Unable to find file ...` 后正常 spawn。
-   启动日志里看到这条警告属正常现象，不代表环境没装好。
+   影响**仅限视觉**：轮胎的 `<collision>` 是独立的 `<cylinder>`，物理完好。
+   实测从全新 clone 启动，3 台机器人全部 `Successfully spawned`，日志中
+   0 个 ERROR / WARN —— 默认日志级别下 Gazebo 不会就此报错。
+   若在提高日志级别后看到 `Unable to find file ...`，属正常现象，不影响仿真。
 
 ---
 
