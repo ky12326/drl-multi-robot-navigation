@@ -33,15 +33,33 @@ class SAC(object):
         learnable_temperature=True,
         save_every=0,
         load_model=False,
-        log_dist_and_hist = False,
+        log_dist_and_hist=False,
+        extra_state_dim=0,
         save_directory=Path("src/drl_navigation_ros2/models/SAC"),
         model_name="SAC",
         load_directory=Path("src/drl_navigation_ros2/models/SAC"),
+        load_name=None,
+        old_state_dim=None,
+        actor_only=False,
+        log_dir=None,
+        # ---- network injection (defaults = current MLP classes, no behavior change) ----
+        actor_cls=None,
+        critic_cls=None,
+        hidden_dim=1024,
+        hidden_depth=2,
+        log_std_bounds=(-5, 2),
+        # ---- frame stacking (seq_len>1 → network input = seq_len × frame_dim) ----
+        seq_len=1,
     ):
         super().__init__()
 
         self.state_dim = state_dim
         self.action_dim = action_dim
+        actual_state_dim = state_dim + extra_state_dim
+        self.seq_len = max(1, int(seq_len))
+        self.actual_state_dim = actual_state_dim            # single-frame dim (prepare_state output)
+        self.net_input_dim = actual_state_dim * self.seq_len  # network input dim (stacked)
+        self.extra_state_dim = extra_state_dim
         self.action_range = (-max_action, max_action)
         self.device = torch.device(device)
         self.discount = discount
@@ -63,30 +81,37 @@ class SAC(object):
                                     "train/batch_reward_av": []
         }
 
+        # Injectable network classes — default to the current MLP classes so
+        # existing experiments are bit-for-bit unchanged. A custom actor (e.g.
+        # RTP-Net with attention + GRU) is plugged in via actor_cls=... .
+        critic_model = critic_cls or globals()["critic_model"]
+        actor_model = actor_cls or globals()["actor_model"]
+
         self.critic = critic_model(
-            obs_dim=self.state_dim,
+            obs_dim=self.net_input_dim,
             action_dim=action_dim,
-            hidden_dim=1024,
-            hidden_depth=2,
+            hidden_dim=hidden_dim,
+            hidden_depth=hidden_depth,
         ).to(self.device)
         self.critic_target = critic_model(
-            obs_dim=self.state_dim,
+            obs_dim=self.net_input_dim,
             action_dim=action_dim,
-            hidden_dim=1024,
-            hidden_depth=2,
+            hidden_dim=hidden_dim,
+            hidden_depth=hidden_depth,
         ).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.actor = actor_model(
-            obs_dim=self.state_dim,
+            obs_dim=self.net_input_dim,
             action_dim=action_dim,
-            hidden_dim=1024,
-            hidden_depth=2,
-            log_std_bounds=[-5, 2],
+            hidden_dim=hidden_dim,
+            hidden_depth=hidden_depth,
+            log_std_bounds=list(log_std_bounds),
         ).to(self.device)
 
         if load_model:
-            self.load(filename=model_name, directory=load_directory)
+            self.load(filename=load_name or model_name, directory=load_directory,
+                      old_state_dim=old_state_dim, actor_only=actor_only)
 
         self.log_alpha = torch.tensor(np.log(init_temperature)).to(self.device)
         self.log_alpha.requires_grad = True
@@ -111,7 +136,11 @@ class SAC(object):
         self.actor.train(True)
         self.critic.train(True)
         self.step = 0
-        self.writer = SummaryWriter()
+        # 如果指定了log_dir，使用它；否则使用默认的runs目录
+        if log_dir:
+            self.writer = SummaryWriter(log_dir=str(log_dir))
+        else:
+            self.writer = SummaryWriter()
 
     def save(self, filename, directory):
         torch.save(self.actor.state_dict(), "%s/%s_actor.pth" % (directory, filename))
@@ -121,16 +150,53 @@ class SAC(object):
             "%s/%s_critic_target.pth" % (directory, filename),
         )
 
-    def load(self, filename, directory):
-        self.actor.load_state_dict(
-            torch.load("%s/%s_actor.pth" % (directory, filename))
-        )
-        self.critic.load_state_dict(
-            torch.load("%s/%s_critic.pth" % (directory, filename))
-        )
-        self.critic_target.load_state_dict(
-            torch.load("%s/%s_critic_target.pth" % (directory, filename))
-        )
+    def load(self, filename, directory, old_state_dim=None, actor_only=False):
+        actor_sd = torch.load("%s/%s_actor.pth" % (directory, filename),
+                              map_location=self.device)
+
+        # --- Actor loading ---
+        if old_state_dim is not None and old_state_dim < self.net_input_dim:
+            utils.pad_input_weights(
+                self.actor.trunk, old_state_dim, self.net_input_dim,
+                actor_sd, "trunk",
+            )
+            for k in list(actor_sd.keys()):
+                if k.startswith("trunk.0."):
+                    del actor_sd[k]
+            self.actor.load_state_dict(actor_sd, strict=False)
+        else:
+            self.actor.load_state_dict(actor_sd)
+
+        if actor_only:
+            # Critic stays randomly initialised; sync target
+            self.critic_target.load_state_dict(self.critic.state_dict())
+            print(f"   🎯 Actor warm-start, critic random init")
+        else:
+            critic_sd = torch.load("%s/%s_critic.pth" % (directory, filename),
+                                   map_location=self.device)
+            critic_target_sd = torch.load("%s/%s_critic_target.pth" % (directory, filename),
+                                          map_location=self.device)
+
+            if old_state_dim is not None and old_state_dim < self.net_input_dim:
+                old_critic_dim = old_state_dim + self.action_dim
+                new_critic_dim = self.net_input_dim + self.action_dim
+                for q_name, sd in [("Q1", critic_sd), ("Q2", critic_sd),
+                                   ("Q1", critic_target_sd), ("Q2", critic_target_sd)]:
+                    trunk = getattr(self.critic if sd is critic_sd else self.critic_target,
+                                    q_name)
+                    utils.pad_input_weights(
+                        trunk, old_critic_dim, new_critic_dim, sd, q_name,
+                        suffix_cols=self.action_dim,
+                    )
+                    for k in list(sd.keys()):
+                        if k.startswith(f"{q_name}.0."):
+                            del sd[k]
+                self.critic.load_state_dict(critic_sd, strict=False)
+                self.critic_target.load_state_dict(critic_target_sd, strict=False)
+            else:
+                self.critic.load_state_dict(critic_sd)
+                self.critic_target.load_state_dict(critic_target_sd)
+
         print(f"Loaded weights from: {directory}")
 
     def train(self, replay_buffer, iterations, batch_size):
@@ -201,6 +267,12 @@ class SAC(object):
 
         actor_Q = torch.min(actor_Q1, actor_Q2)
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+
+        # Auxiliary-loss extension point (e.g. RTP-Net's intent-prediction head).
+        # Default actor has no aux_loss() → behavior unchanged.
+        if hasattr(self.actor, "aux_loss"):
+            actor_loss = actor_loss + self.actor.aux_loss()
+
         self.train_metrics_dict["train_actor/loss_av"].append(actor_loss.item())
         self.train_metrics_dict["train_actor/target_entropy_av"].append(self.target_entropy)
         self.train_metrics_dict["train_actor/entropy_av"].append(-log_prob.mean().item())
@@ -252,14 +324,23 @@ class SAC(object):
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target, self.critic_tau)
 
-    def prepare_state(self, latest_scan, distance, cos, sin, collision, goal, action):
+    def prepare_state(self, latest_scan, distance, cos, sin, collision, goal, action,
+                      neighbor_features=None):
         # update the returned data from ROS into a form used for learning in the current model
-        latest_scan = np.array(latest_scan)
+        latest_scan = np.array(latest_scan, dtype=np.float32)
 
-        inf_mask = np.isinf(latest_scan)
-        latest_scan[inf_mask] = 7.0
+        if latest_scan.size == 0:
+            latest_scan = np.full(180, 7.0, dtype=np.float32)
 
-        max_bins = self.state_dim - 5
+        latest_scan = np.nan_to_num(
+            latest_scan,
+            nan=7.0,
+            posinf=7.0,
+            neginf=0.0,
+        )
+
+        base_dim = 25  # 20 LiDAR bins + dist + cos + sin + 2 prev actions
+        max_bins = base_dim - 5
         bin_size = int(np.ceil(len(latest_scan) / max_bins))
 
         # Initialize the list to store the minimum values of each bin
@@ -273,7 +354,17 @@ class SAC(object):
             min_values.append(min(bin))
         state = min_values + [distance, cos, sin] + [action[0], action[1]]
 
-        assert len(state) == self.state_dim
+        if neighbor_features is not None:
+            if len(neighbor_features) != self.extra_state_dim:
+                raise ValueError(
+                    f"neighbor_features length {len(neighbor_features)} != "
+                    f"extra_state_dim {self.extra_state_dim}"
+                )
+            state += list(neighbor_features)
+        elif self.extra_state_dim > 0:
+            state += [0.0] * self.extra_state_dim
+
+        assert len(state) == self.actual_state_dim
         terminal = 1 if collision or goal else 0
 
         return state, terminal
