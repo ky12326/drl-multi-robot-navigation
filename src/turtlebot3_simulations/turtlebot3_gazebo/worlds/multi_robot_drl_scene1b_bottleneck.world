@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="default">
+
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <ros>
+        <namespace>/gazebo</namespace>
+      </ros>
+      <update_rate>1.0</update_rate>
+    </plugin>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <scene>
+      <shadows>false</shadows>
+    </scene>
+
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose frame="">0.319654 -0.235002 9.29441 0 1.5138 0.009599</pose>
+        <view_controller>orbit</view_controller>
+        <projection_type>perspective</projection_type>
+      </camera>
+    </gui>
+
+    <physics type="ode">
+      <real_time_update_rate>2500.0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>2.5</real_time_factor>
+      <ode>
+        <solver>
+          <type>quick</type>
+          <iters>150</iters>
+          <precon_iters>0</precon_iters>
+          <sor>1.400000</sor>
+          <use_dynamic_moi_rescaling>1</use_dynamic_moi_rescaling>
+        </solver>
+        <constraints>
+          <cfm>0.00001</cfm>
+          <erp>0.2</erp>
+          <contact_max_correcting_vel>2000.000000</contact_max_correcting_vel>
+          <contact_surface_layer>0.01000</contact_surface_layer>
+        </constraints>
+      </ode>
+    </physics>
+
+    <include>
+      <uri>model://10by10</uri>
+    </include>
+
+    <!--
+      Scene 1b: balanced bottleneck / corridor-interaction world.
+
+      Design purpose:
+        1) Keep the "four central static obstacles" idea from Scene 1.
+        2) Make obstacle sizes balanced instead of one large block + three small blocks.
+        3) Place the four obstacles around the center to form a cross-shaped bottleneck.
+        4) Keep the central passage feasible for one robot and challenging for two robots,
+           encouraging one-after-another passage / yielding behavior.
+        5) Keep outer bypass space available but less dominant than Scene 1.
+
+      Geometry notes:
+        - Each obstacle is a 1.60m x 1.60m square block, slightly larger than the
+          original Scene1 obstacle1 footprint in the shorter dimension.
+        - Centers are placed at (+/-1.60, +/-1.60), leaving an about 1.60m wide
+          central cross-shaped passage.
+        - If Gazebo observation shows the central corridor is too easy, move centers
+          closer to the origin slightly, e.g. +/-1.50. If it is too hard, move centers
+          outward slightly, e.g. +/-1.75.
+    -->
+
+    <!-- Upper-left central block. -->
+    <model name="obstacle1">
+      <pose>-1.90 1.90 0 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Upper-right central block. -->
+    <model name="obstacle2">
+      <pose>1.90 1.90 0 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Lower-left central block. -->
+    <model name="obstacle3">
+      <pose>-1.90 -1.90 0 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Lower-right central block. -->
+    <model name="obstacle4">
+      <pose>1.90 -1.90 0 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <pose>0 0 0.5 0 0 0</pose>
+          <geometry><box><size>1.60 1.60 1.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
