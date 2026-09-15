@@ -1,5 +1,7 @@
 # 多机器人协同避障 DRL 仿真验证平台
 
+[![tests](https://github.com/ky12326/drl-multi-robot-navigation/actions/workflows/test.yml/badge.svg)](https://github.com/ky12326/drl-multi-robot-navigation/actions/workflows/test.yml)
+
 > **Multi-Robot Collision-Avoidance DRL Verification Platform (ROS2 / Gazebo)**
 >
 > 基于 SAC / TD3 的 N 机器人协同导航训练与评估框架，配套参数化仿真验证环境、
@@ -151,6 +153,9 @@ python src/drl_navigation_ros2/test_dryrun_training.py  # 训练循环接口预�
 >   输出为 `16 passed, 8 skipped`；有 ROS 时才是 24 个全跑。
 > - `test_dryrun_training.py` 不依赖 Gazebo、也不依赖任何权重文件。
 >   若训练用的 social-v1 权重不在本地，Check 1 会打印警告并**回退冷启动**继续。
+
+**CI**：每次推送到 `main` 或提交 PR 时，GitHub Actions 会自动在 ROS2 Foxy
+容器中运行 `pytest tests/`（配置见 `.github/workflows/test.yml`）。
 
 ### 3. 训练
 

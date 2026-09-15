@@ -1,5 +1,10 @@
 name: tests
 
+# 本流水线运行的是**不依赖 Gazebo 的单元测试层**（tests/）。
+# 仿真场景测试单次运行即需数十秒到数分钟，不适合放进 CI 的分钟级预算，
+# 应当另作 nightly 任务运行 —— 这也是把 pure_pursuit 等模块与 CARLA/Gazebo
+# 解耦、让它们能在无仿真器环境下执行的原因。
+#
 # 触发条件：推送到 main、或对 main 提 PR 时
 on:
   push:
@@ -19,7 +24,7 @@ jobs:
     container: ros:foxy
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 安装 ROS 侧依赖
         run: |
