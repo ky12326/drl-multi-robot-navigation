@@ -37,7 +37,7 @@ class FrameStacker:
 
     @property
     def stacked_dim(self):
-        return self.seq_len * self.state_dim
+        return self.seq_len + self.state_dim  # 故意改坏：验证 CI 能捕获
 
     def __len__(self):
         return len(self._buf)
