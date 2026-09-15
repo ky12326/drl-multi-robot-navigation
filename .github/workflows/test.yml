@@ -46,4 +46,10 @@ jobs:
           python3 -m pip install -r requirements.txt
 
       - name: 单元测试
-        run: python3 -m pytest tests/ -v
+        run: |
+          # 必须显式 source ROS 环境：ros:foxy 镜像原本通过 /ros_entrypoint.sh
+          # 设置环境，而 GitHub Actions 的 container: 会覆盖镜像 entrypoint，
+          # 不 source 的话 rclpy 不可导入 —— test_layouts.py 会被整模块 skip，
+          # CI 依然显示绿色，但实际少跑 8 个用例。
+          source /opt/ros/foxy/setup.bash
+          python3 -m pytest tests/ -v
