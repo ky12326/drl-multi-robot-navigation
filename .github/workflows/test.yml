@@ -1,0 +1,44 @@
+name: tests
+
+# 触发条件：推送到 main、或对 main 提 PR 时
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    name: pytest (ROS2 Foxy)
+    runs-on: ubuntu-latest
+
+    # 为什么用容器而不是 runs-on: ubuntu-20.04？
+    # GitHub Actions 的 ubuntu-20.04 runner 已于 2025-04 移除，而 ROS2 Foxy
+    # 只支持 Ubuntu 20.04。用官方 ros:foxy 镜像可以在受支持的 runner 上
+    # 复现出与本地开发一致的 ROS 环境，避免"CI 过了本地不过"。
+    container: ros:foxy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 ROS 侧依赖
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-pip \
+            ros-foxy-gazebo-msgs
+          # 说明：rclpy / nav_msgs / sensor_msgs / geometry_msgs / std_srvs /
+          # visualization_msgs 都包含在 ros_base 元包里，镜像自带；
+          # gazebo_msgs 属于 gazebo_ros_pkgs，不在 ros_base 中，需单独安装。
+
+      - name: 安装 Python 依赖
+        run: |
+          python3 -m pip install --upgrade pip
+          # torch 单独安装 CPU 版：默认从 PyPI 拉取的是 CUDA 版（约 2 GB），
+          # 而 CI 环境没有 GPU，装 CPU 版可显著缩短安装时间。
+          python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          # 其余依赖走 requirements.txt（torch 已满足，pip 会跳过）
+          python3 -m pip install -r requirements.txt
+
+      - name: 单元测试
+        run: python3 -m pytest tests/ -v
