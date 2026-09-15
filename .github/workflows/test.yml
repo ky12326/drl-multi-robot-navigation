@@ -23,6 +23,12 @@ jobs:
     # 复现出与本地开发一致的 ROS 环境，避免"CI 过了本地不过"。
     container: ros:foxy
 
+    # 容器作业的 run: 默认用 sh（dash）执行，而 ROS 的 setup.bash 依赖 bash 特性
+    # （source 在内置为 sh 时会报 "source: not found"，退出码 127）。
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v5
 
